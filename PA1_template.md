@@ -1,9 +1,4 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+# Reproducible Research: Peer Assessment 1
 
 ## Introduction
 
@@ -17,21 +12,23 @@ The task is to analyze personal activity recorded in the data set.
 
 ## Loading and preprocessing the data
 
-The data was downloaded on `r date()` from the course web
+The data was downloaded on Fri Feb 13 10:24:02 2015 from the course web
 site:
 [Activity monitoring data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip) [52K],
 which is a zipped csv file. The following commands are used to unzip the data file and read it into R object `data`
 
-```{r}
+
+```r
   unzip('activity.zip','activity.csv')
   data <- read.csv('activity.csv')
 ```
 
-There are three vaiables in this dataset, whose names are: **`r names(data)`**.
+There are three vaiables in this dataset, whose names are: **steps, date, interval**.
 For analysis, I turned the `date` variable into a factor using the `as.Date()` function.
 Futhermore, I choose to work with data table object using the data.table package. The R code is given here.
 
-```{r}
+
+```r
   data$date <- as.Date(data$date,"%Y-%m-%d")
 
   suppressWarnings(library(data.table))
@@ -43,22 +40,36 @@ Futhermore, I choose to work with data table object using the data.table package
 
 To analyze the total number of steps taken per day, summation over the steps within each day is necessary. 
 This can be done using the R code
-```{r}
+
+```r
   perDayData <- data[, sum(steps, na.rm=TRUE), by=date]
 ```
 where all the missing data points have been removed. The new dataset is named `perDayData`.
 A histogram of the total number of steps taken each day can be generated with
-```{r}
+
+```r
   hist(perDayData$V1, xlab='steps', main='Histogram of total number of steps taken per day')
 ```
 
+![](PA1_template_files/figure-html/unnamed-chunk-4-1.png) 
+
 The mean of total number of steps taken per day is given by
-```{r}
+
+```r
   mean(perDayData$V1)
 ```
+
+```
+## [1] 9354.23
+```
 The median of total number of steps taken per day is given by
-```{r}
+
+```r
   median(perDayData$V1)
+```
+
+```
+## [1] 10395
 ```
 
 
@@ -66,22 +77,36 @@ The median of total number of steps taken per day is given by
 ## What is the average daily activity pattern?
 
 To see the average daily activity pattern, averaging over the different dates is done using the code
-```{r}
+
+```r
   avgDay <- data[, mean(steps,na.rm=TRUE), by=interval]
 ```
 where the missing data points are removed again. The new data is named `avgDay`.
 The following code is used to make a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
-```{r}
+
+```r
   with(avgDay, plot(interval,V1, type='l', xlab='5-minute interval', ylab='average number of steps taken'))
 ```
 
+![](PA1_template_files/figure-html/unnamed-chunk-8-1.png) 
+
 We can find the location (the row index) of the peak activity using
-```{r}
+
+```r
   which.max(avgDay$V1)
 ```
+
+```
+## [1] 104
+```
 which corresponds to the time internal
-```{r}
+
+```r
   avgDay$interval[which.max(avgDay$V1)]
+```
+
+```
+## [1] 835
 ```
 
 
@@ -89,14 +114,20 @@ which corresponds to the time internal
 
 The above analysis simply ignored all the missing data points. The total number of rows with missing data
 can be calculated as
-```{r}
+
+```r
   nrow(data[apply(is.na(data),1,any),])
 ```
-which is about `r format(100*nrow(data[apply(is.na(data),1,any),])/nrow(data), digits=2)`% of the dataset.
+
+```
+## [1] 2304
+```
+which is about 13% of the dataset.
 
 A better treatment is to fill all missing data points with the corresponding average value obtained from available data.
 The average value over the dates has been saved in `avgDay`. A function named `filler` is defined as
-```{r}
+
+```r
   filler <- function(aDay){
                 naRow<-is.na(aDay$steps)
                 if (sum(naRow)>0) {aDay$steps[naRow]<-avgDay$V1[naRow]}
@@ -106,32 +137,37 @@ The average value over the dates has been saved in `avgDay`. A function named `f
 For any given day, the missing step values are replaced with the averge values in `avgDay`. 
 To apply it to every day in the dataset, I will split the `data` by date, apply the `filler` function,
 and then recombine the result into the original data format. This can be done via
-```{r}
+
+```r
   g <- as.factor(data$date)
   cleanData <- unsplit(lapply(split(data, g), filler), g)
 ```
 The new dataset is named `cleanData`.
 
 Again, we make a histogram of the steps taken per day via
-```{r}
+
+```r
   perDayDataCleaned <- cleanData[, sum(steps), by=date]
   hist(perDayDataCleaned$V1, xlab='steps', main='Histogram of total number of steps taken per day')
 ```
 
+![](PA1_template_files/figure-html/unnamed-chunk-14-1.png) 
+
 The mean is given by 
-`format(mean(perDayDataCleaned$V1), digits=5)` = `r format(mean(perDayDataCleaned$V1), digits=5)`.
+`format(mean(perDayDataCleaned$V1), digits=5)` = 10766.
 The median is given by 
-`format(median(perDayDataCleaned$V1), digits=5)` = `r format(median(perDayDataCleaned$V1), digits=5)`.
+`format(median(perDayDataCleaned$V1), digits=5)` = 10766.
 
 There are significant changes in the histogram, as well as the mean and median values. For example, 
-the impact on the mean is `r format(100*(mean(perDayDataCleaned$V1)/mean(perDayData$V1) -1), digits=2)`% increase.
+the impact on the mean is 15% increase.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
 
 To see the differences in activity patterns between weekdays and weekends, I first create a new factor variable `d` with two levels -- "weekday" and "weekend". This can be done with the following code
-```{r}
+
+```r
   d <- weekdays(cleanData$date)
   d <- as.factor(d=='Saturday' | d=='Sunday')
   levels(d) <- c("Weekday", "weekend")
@@ -140,9 +176,12 @@ To see the differences in activity patterns between weekdays and weekends, I fir
 
 
 Now, using the lattice package, we can make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
-```{r}
+
+```r
   w <- cleanData[, mean(steps), by=c('interval', 'd')]
   
   suppressWarnings(library(lattice))
   xyplot(V1 ~ interval | d, w, type='l', layout=c(1,2), ylab='Number of steps')
 ```
+
+![](PA1_template_files/figure-html/unnamed-chunk-16-1.png) 
